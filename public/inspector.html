@@ -1,0 +1,46 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Inspector Dashboard · KrishiSetuAI</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<nav class="nav"><div class="brand">🔎 KrishiSetuAI · Inspector</div><div class="nav-links"><a href="/">Home</a><a href="/centre.html">Centre Operations</a><a href="/admin.html">Government</a></div></nav>
+<div class="container">
+  <div class="hero"><h1>Inspector operations</h1><p>Manage optional pre-procurement expert visits and record the official physical verification at procurement centres.</p></div>
+
+  <div class="card" style="margin-bottom:18px">
+    <div class="topbar"><div><h2>Pre-procurement expert visit requests</h2><p class="muted">Farmers can request an expert visit at their farm before travelling. These assessments are advisory only.</p></div><button class="btn secondary" onclick="loadVisits()">Refresh</button></div>
+    <div id="visitList"><div class="notice">Loading visit requests...</div></div>
+  </div>
+
+  <div class="two-col">
+    <div class="card"><div class="topbar"><h2>Farmers ready for official verification</h2><select id="centre" class="pill"></select></div><div id="queue"></div></div>
+    <div class="card"><h2>Official verification record</h2><p id="current" class="muted">Select a farmer from the queue.</p>
+      <form id="verify" class="hidden">
+        <div class="field"><label>Result</label><select id="result"><option value="ACCEPTED">ACCEPTED</option><option value="REJECTED">REJECTED</option></select></div><br>
+        <div class="field"><label>Final grade</label><select id="grade"><option>A</option><option>B</option><option>C</option></select></div><br>
+        <div class="field"><label>Verified quantity (quintals)</label><input id="qty" type="number" required></div><br>
+        <div class="field"><label>Condition</label><input id="condition" value="Physically verified"></div><br>
+        <div class="field"><label>Inspector</label><input id="inspector" value="Authorised Inspector"></div><br>
+        <div class="field"><label>Notes</label><textarea id="notes" rows="4"></textarea></div><br>
+        <div class="field"><label>Procurement price ₹/quintal</label><input id="price" type="number" value="2300"></div><br>
+        <button class="btn">Save official verification</button>
+      </form>
+    </div>
+  </div>
+</div>
+<script src="/js/api.js"></script>
+<script>
+let selected=null;
+async function init(){const d=await api('/api/admin/overview');centre.innerHTML=d.centres.map(c=>'<option value="'+c._id+'">'+escapeHtml(c.name)+'</option>').join('');load();loadVisits()}
+async function load(){const d=await api('/api/admin/centre/'+centre.value+'/status');const rows=d.queue.filter(b=>['ARRIVED','CALLED','GRADING'].includes(b.status));queue.innerHTML=rows.length?rows.map(b=>'<div class="inspector-row"><div><b>'+escapeHtml(b.tokenCode)+'</b><p>'+escapeHtml(b.farmer.name)+' · '+escapeHtml(b.cropRecord.cropType)+' · '+escapeHtml(b.quantity)+' qtl</p><span class="badge">'+escapeHtml(b.status)+'</span></div><button class="btn" onclick="selectBooking(\''+b._id+'\')">Inspect</button></div>').join(''):'<div class="notice">No farmers waiting for official inspection.</div>'}
+async function selectBooking(id){const d=await api('/api/admin/centre/'+centre.value+'/status');const b=d.queue.find(x=>x._id===id);if(!b)return;selected=await api('/api/procurement/booking/'+encodeURIComponent(b.tokenCode));current.textContent=selected.tokenCode+' · '+selected.farmer.name+' · '+selected.cropRecord.cropType+' · '+selected.quantity+' qtl';qty.value=selected.quantity;verify.classList.remove('hidden')}
+async function loadVisits(){try{const visits=await api('/api/procurement/visit-requests');const validVisits=(visits||[]).filter(v=>v && v.farmer && v.cropRecord);visitList.innerHTML=validVisits.length?validVisits.map(v=>`<div class="inspector-row"><div><b>${escapeHtml(v.farmer.name)}</b><p>${escapeHtml(v.cropRecord.cropType)} · ${escapeHtml(v.cropRecord.estimatedQuantity)} qtl · 📍 ${escapeHtml(v.location||v.cropRecord.location||'Not provided')}</p><span class="badge">${escapeHtml(v.status)}</span>${v.scheduledAt?'<p>Scheduled: '+escapeHtml(new Date(v.scheduledAt).toLocaleString())+'</p>':''}</div><div class="row">${v.status==='REQUESTED'?'<button class="btn" onclick="acceptVisit(\''+v._id+'\')">Accept visit</button>':''}${['ACCEPTED','IN_PROGRESS'].includes(v.status)?'<button class="btn secondary" onclick="completeVisit(\''+v._id+'\')">Complete assessment</button>':''}</div></div>`).join(''):'<div class="notice">No pending expert visit requests.</div>'}catch(e){visitList.innerHTML='<div class="notice error">'+escapeHtml(e.message)+'</div>'}}
+async function acceptVisit(id){try{await api('/api/procurement/visit-requests/'+id+'/accept',{method:'POST',body:JSON.stringify({inspector:'Authorised Field Expert'})});loadVisits()}catch(e){alert(e.message)}}
+async function completeVisit(id){const assessment=prompt('Enter preliminary expert assessment:','Crop condition looks suitable for centre visit.');if(!assessment)return;const notes=prompt('Optional notes:','Farmer advised on handling and preparation.');try{await api('/api/procurement/visit-requests/'+id+'/complete',{method:'POST',body:JSON.stringify({assessment,notes,inspector:'Authorised Field Expert',recommendation:'Proceed to the procurement centre for official physical verification.'})});loadVisits()}catch(e){alert(e.message)}}
+verify.addEventListener('submit',async e=>{e.preventDefault();if(!selected)return;try{await api('/api/procurement/operator/'+selected._id+'/record',{method:'POST',body:JSON.stringify({result:result.value,grade:grade.value,quantity:qty.value,pricePerQuintal:price.value,condition:condition.value,inspector:inspector.value,notes:notes.value})});alert(result.value==='ACCEPTED'?'Verification saved. Payment moved to PROCESSING.':'Verification saved as rejected.');verify.classList.add('hidden');selected=null;current.textContent='Select a farmer from the queue.';load()}catch(e){alert(e.message)}});
+centre.addEventListener('change',load);init();setInterval(()=>{load();loadVisits()},10000);
+</script>
+</body></html>

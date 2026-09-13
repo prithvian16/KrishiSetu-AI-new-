@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Live Queue</title><link rel="stylesheet" href="/css/style.css"></head>
+<body><nav class="nav"><div class="brand">⏳ Live Procurement Queue</div><a href="/dashboard.html">Dashboard</a></nav>
+<div class="container"><div id="queue"></div></div>
+<script src="/js/api.js"></script>
+<script>
+async function load(){
+ const token=new URLSearchParams(location.search).get("token")||localStorage.getItem("tokenCode");
+ if(!token){queue.innerHTML='<div class="notice error">No token found.</div>';return;}
+ const b=await api("/api/procurement/booking/"+encodeURIComponent(token));
+ queue.innerHTML=`<div class="hero"><p>Your token</p><div class="token">${escapeHtml(b.tokenCode)}</div><p>Slot: <b>${escapeHtml(b.slotStart)}–${escapeHtml(b.slotEnd)}</b> · ${escapeHtml(b.slotDate)}</p></div>
+ <div class="grid">
+ <div class="card"><h3>Queue position</h3><div class="stat">#${escapeHtml(b.queuePosition)}</div><p class="muted">People ahead are reduced automatically when tokens are completed/cancelled.</p></div>
+ <div class="card"><h3>Estimated waiting time</h3><div class="stat">${escapeHtml(b.etaMin)}–${escapeHtml(b.etaMax)} min</div><p class="muted">Range updates as the centre processes farmers.</p></div>
+ <div class="card"><h3>Status</h3><span class="badge">${escapeHtml(b.status)}</span><p>${escapeHtml(b.centre.name)}</p></div>
+ <div class="card"><h3>Notifications</h3>${b.notifications.map(n=>`<div class="notice">${escapeHtml(n.message)}</div>`).join("")}</div>
+ </div>
+ <div class="row"><button class="btn" onclick="arrive('${b._id}')">I have arrived</button><button class="btn danger" onclick="cancelBooking('${b._id}')">Cancel booking</button></div>`;
+}
+async function arrive(id){await api("/api/procurement/booking/"+id+"/arrive",{method:"POST"});load()}
+async function cancelBooking(id){if(confirm("Cancel this booking?")){await api("/api/procurement/booking/"+id+"/cancel",{method:"POST"});load()}}
+load(); setInterval(load,10000);
+</script></body></html>

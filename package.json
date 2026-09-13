@@ -1,0 +1,14 @@
+{
+  "name": "krishisetuai",
+  "version": "1.0.0",
+  "description": "SIH 2026 PS 26032 - Smart Procurement and Queue Management prototype",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "mongoose": "^8.18.0"
+  }
+}

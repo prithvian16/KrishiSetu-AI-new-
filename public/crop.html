@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Register Crop</title><link rel="stylesheet" href="/css/style.css"></head>
+<body><nav class="nav"><div class="brand">🌾 Crop Registration</div><a href="/dashboard.html">Dashboard</a></nav>
+<div class="container"><div class="card">
+<h1>Pre-procurement crop registration</h1>
+<form id="cropForm" class="form-grid">
+<div class="field"><label>Crop type</label><select name="cropType"><option>Paddy</option><option>Wheat</option><option>Bajra</option></select></div>
+<div class="field"><label>Estimated quantity (quintals)</label><input name="estimatedQuantity" type="number" required></div>
+<div class="field"><label>Crop location</label><input name="location" placeholder="Village / field"></div>
+<div class="field"><label>Crop photo URL (prototype)</label><input name="cropPhotoUrl" placeholder="https://..."></div>
+<div class="field"><label>Visible damage</label><select name="visibleDamage"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
+<div class="field"><label>Estimated moisture %</label><input name="moisture" type="number" step="0.1" value="12"></div>
+<div class="field"><label>Visible impurity %</label><input name="impurity" type="number" step="0.1" value="1"></div>
+<div class="field"><label>Applicable authorised price ₹/quintal</label><input name="authorisedPrice" type="number" value="2300"></div>
+<div class="field"><label>Optional preferred minimum price ₹/quintal</label><input name="farmerPreferredPrice" type="number"></div>
+<div class="field full"><button class="btn">Run preliminary screening</button></div>
+</form>
+<div id="result"></div>
+</div></div>
+<script src="/js/api.js"></script>
+<script>
+cropForm.addEventListener("submit",async e=>{
+ e.preventDefault(); const f=new FormData(cropForm);
+ try{
+  const d=await api("/api/procurement/crops",{method:"POST",body:JSON.stringify({
+   farmerId:localStorage.getItem("farmerId"),cropType:f.get("cropType"),estimatedQuantity:f.get("estimatedQuantity"),location:f.get("location"),
+   cropPhotoUrl:f.get("cropPhotoUrl"),visibleDamage:f.get("visibleDamage"),moisture:f.get("moisture"),impurity:f.get("impurity"),
+   authorisedPrice:f.get("authorisedPrice"),farmerPreferredPrice:f.get("farmerPreferredPrice")
+  })});
+  localStorage.setItem("cropRecordId",d._id);
+  result.innerHTML=`<div class="notice"><h2>Preliminary result: Grade ${d.aiScreening.grade}</h2><p>Screening score: ${d.aiScreening.score}/100 · Visible damage: ${escapeHtml(d.aiScreening.visibleDamage)}</p><p>${escapeHtml(d.aiScreening.disclaimer)}</p></div><a class="btn" href="/dashboard.html">Find procurement centre</a>`;
+ }catch(err){result.innerHTML=`<div class="notice error">${escapeHtml(err.message)}</div>`}
+});
+</script></body></html>

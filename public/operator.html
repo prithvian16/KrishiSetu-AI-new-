@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Operator Dashboard</title><link rel="stylesheet" href="/css/style.css"></head>
+<body><nav class="nav"><div class="brand">🏢 Procurement Operator</div><a href="/">Home</a></nav>
+<div class="container">
+<div class="card"><h1>Live queue board</h1><div class="field"><label>Centre</label><select id="centre"></select></div><br><button class="btn" onclick="callNext()">Call next farmer</button></div>
+<div id="queue" class="card" style="margin-top:18px"></div>
+<div id="formCard" class="card hidden" style="margin-top:18px"><h2>Record final verification</h2><form id="verifyForm" class="form-grid">
+<div class="field"><label>Result</label><select id="result"><option value="ACCEPTED">Accepted</option><option value="REJECTED">Rejected</option></select></div>
+<div class="field"><label>Actual grade</label><select id="grade"><option>A</option><option>B</option><option>C</option></select></div>
+<div class="field"><label>Actual quantity</label><input id="quantity" type="number"></div>
+<div class="field"><label>Price ₹/quintal</label><input id="price" type="number" value="2300"></div>
+<div class="field"><label>Condition</label><input id="condition" value="Physical verification completed"></div>
+<div class="field"><label>Inspector</label><input id="inspector" value="Demo Inspector"></div>
+<div class="field full"><label>Notes</label><textarea id="notes"></textarea></div>
+<div class="field full"><button class="btn">Save verification</button></div>
+</form></div>
+</div>
+<script src="/js/api.js"></script>
+<script>
+let current=null, centres=[];
+async function init(){centres=await api("/api/admin/overview"); const s=document.getElementById("centre");s.innerHTML=centres.centres.map(c=>`<option value="${c._id}">${escapeHtml(c.name)}</option>`).join("");loadQueue();}
+async function loadQueue(){
+ const id=centre.value; const d=await api("/api/admin/queue/"+id);
+ queue.innerHTML=`<h2>Waiting farmers: ${d.length}</h2><table class="table"><tr><th>Token</th><th>Farmer</th><th>Crop</th><th>Qty</th><th>Status</th></tr>${d.map(b=>`<tr><td>${escapeHtml(b.tokenCode)}</td><td>${escapeHtml(b.farmer.name)}</td><td>${escapeHtml(b.cropRecord.cropType)}</td><td>${escapeHtml(b.quantity)}</td><td>${escapeHtml(b.status)}</td></tr>`).join("")}</table>`;
+}
+centre.addEventListener("change",loadQueue);
+async function callNext(){try{current=await api("/api/admin/call-next/"+centre.value,{method:"POST"});formCard.classList.remove("hidden");quantity.value=current.quantity;alert(`Calling ${current.tokenCode}`);loadQueue()}catch(e){alert(e.message)}}
+verifyForm.addEventListener("submit",async e=>{e.preventDefault();await api("/api/procurement/operator/"+current._id+"/record",{method:"POST",body:JSON.stringify({result:result.value,grade:grade.value,quantity:quantity.value,pricePerQuintal:price.value,condition:condition.value,inspector:inspector.value,notes:notes.value})});alert("Verification recorded. Payment is now in PROCESSING for accepted crop.");formCard.classList.add("hidden");loadQueue()});
+init();
+</script></body></html>
